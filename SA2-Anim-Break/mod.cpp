@@ -18,6 +18,7 @@ extern "C" {
 		}
 
 		ReadConfig(path); //get mod settings by the user
+		PatchAnimations();
 	}
 
 	__declspec(dllexport) void __cdecl OnFrame() {
