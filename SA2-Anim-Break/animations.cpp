@@ -12,7 +12,7 @@ static AnimationIndex CharacterAnimations_r[animcount * charactersCount]{};
 string charArray[]
 {
 	"sonic",
-	"terios"
+	"terios",
 	"miles",
 	"egg",
 	"knuck",
@@ -36,7 +36,6 @@ void Move_CharacterAnimID(CharObj2Base* co2, char charID)
 		if (co2->AnimInfo.Animations[i].AnimNum)
 		{
 			co2->AnimInfo.Animations[i].AnimNum = CharacterAnimations_r[i + animcount * charID].Index;
-			co2->AnimInfo.Animations[i].AnimNum = co2->AnimInfo.Animations[i].AnimNum;
 		}
 	}
 }
@@ -167,7 +166,6 @@ void PatchPlayAnimation()
 
 	//PSetMotion
 	WriteData((NJS_MOTION***)0x469cf1, &CharacterAnimations_r[0].Animation);	
-
 
 	//PInitializeInterpolateMotion2_
 	WriteData((NJS_MOTION***)0x469d36, &CharacterAnimations_r[0].Animation);	
