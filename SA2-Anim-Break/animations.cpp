@@ -152,17 +152,18 @@ void PatchMilesAnim()
 //the most important hack
 void PatchPlayAnimation()
 {
-	WriteData((NJS_MOTION***)0x469340, &CharacterAnimations_r[0].Animation);	
-	WriteData((NJS_MOTION***)0x46934a, &CharacterAnimations_r[0].Animation);	
-	WriteData((NJS_MOTION***)0x46950f, &CharacterAnimations_r[0].Animation);	
-	WriteData((NJS_MOTION***)0x4695b6, &CharacterAnimations_r[0].Animation);
-	WriteData((NJS_MOTION***)0x46966C, &CharacterAnimations_r[0].Animation);
-	WriteData((NJS_MOTION***)0x46971B, &CharacterAnimations_r[0].Animation);	
+	WriteData((uint32_t**)0x469340, &CharacterAnimations_r[0].Animation->nbFrame);	
+	WriteData((uint32_t**)0x46934a, &CharacterAnimations_r[0].Animation->nbFrame);
+	WriteData((NJS_MOTION***)0x46950f, &CharacterAnimations_r[0].Animation);
 	WriteData((NJS_MOTION***)0x469779, &CharacterAnimations_r[0].Animation);	
 	WriteData((NJS_MOTION***)0x4697F7, &CharacterAnimations_r[0].Animation);	
+	WriteData((NJS_MOTION***)0x469a31, &CharacterAnimations_r[0].Animation);
 	WriteData((NJS_MOTION***)0x46992B, &CharacterAnimations_r[0].Animation);	
-	WriteData((NJS_MOTION***)0x469a31, &CharacterAnimations_r[0].Animation);	
-	WriteData((NJS_MOTION***)0x469acB, &CharacterAnimations_r[0].Animation);	
+	WriteData((uint32_t**)0x469acB, &CharacterAnimations_r[0].Animation->nbFrame);	
+
+	WriteData((uint32_t**)0x4695b6, &CharacterAnimations_r[0].Animation->nbFrame);
+	WriteData((uint32_t**)0x46966C, &CharacterAnimations_r[0].Animation->nbFrame);
+	WriteData((NJS_MOTION***)0x46971B, &CharacterAnimations_r[0].Animation);
 
 	//PSetMotion
 	WriteData((NJS_MOTION***)0x469cf1, &CharacterAnimations_r[0].Animation);	
@@ -182,10 +183,7 @@ void PatchPlayAnimation()
 	
 	//?????
 	WriteData((uint32_t**)0x45a4dB, &CharacterAnimations_r[0].Animation->nbFrame);	
-	WriteData((uint32_t**)0x45e4fA, &CharacterAnimations_r[0].Animation->nbFrame);
-
-
-	
+	WriteData((uint32_t**)0x45e4fA, &CharacterAnimations_r[0].Animation->nbFrame);	
 }
 
 
