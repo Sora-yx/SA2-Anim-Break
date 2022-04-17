@@ -1,11 +1,11 @@
 #include "pch.h"
 #include <algorithm>
 
-
 using namespace std;
 
 static constexpr int charactersCount = 16;
 static constexpr int animcount = 300;
+static constexpr int charAnimStart = 86;
 
 static AnimationIndex CharacterAnimations_r[animcount * charactersCount]{};
 
@@ -29,6 +29,18 @@ string charArray[]
 	"chaos0",
 };
 
+void Move_CharacterAnimID(CharObj2Base* co2, char charID)
+{
+	for (int i = charAnimStart; i < animcount; i++)
+	{
+		if (co2->AnimInfo.Animations[i].AnimNum)
+		{
+			co2->AnimInfo.Animations[i].AnimNum = CharacterAnimations_r[i + animcount * charID].Index;
+			co2->AnimInfo.Animations[i].AnimNum = co2->AnimInfo.Animations[i].AnimNum;
+		}
+	}
+	
+}
 
 int GetIDFromMtnName(char* name)
 {
@@ -53,8 +65,8 @@ int GetIDFromMtnName(char* name)
 AnimationIndex* LoadMTNFile_r(char* name)
 {
 	auto mem = LoadMTNFile(name);
-	auto charID = GetIDFromMtnName(name);
 
+	auto charID = GetIDFromMtnName(name);
 
 	 if (charID == -2) //common anim
 	 {
@@ -69,18 +81,36 @@ AnimationIndex* LoadMTNFile_r(char* name)
 	 }
 	 else if (charID > 0) {
 
-		 for (int i = 0; i < animcount; ++i)
+		 for (int i = charAnimStart; i < animcount; ++i)
 		 {
-			 CharacterAnimations_r[i + animcount].Index = CharacterAnimations[i].Index;
+			 CharacterAnimations_r[i + animcount * charID].Index = i + animcount * charID;
 			 CharacterAnimations_r[i + animcount * charID].Animation = CharacterAnimations[i].Animation;
 			 CharacterAnimations_r[i + animcount * charID].Count = CharacterAnimations[i].Count;
 		 }
 
 		 PrintDebug("Successfully copied %s \n", name);
+
 	 }
 	else {
 		PrintDebug("Failed to detect the character animation, animation couldn't be copied.\n");
 	}
+
+	 for (int i = 0; i < 2; i++) {
+
+		 if (MainCharObj2[i]) {
+
+			 auto curChar = charID - 1;
+
+			 if (curChar >= Characters_B) {
+				 curChar += 1;
+				 charID += 1;
+			 }
+
+			 if (MainCharObj2[i]->CharID2 == curChar)
+				 Move_CharacterAnimID(MainCharObj2[i], charID);
+		 }
+	 }
+
 
 	return mem;
 }
@@ -120,4 +150,8 @@ void PatchAnimations()
 	WriteCall((void*)0x741240, LoadMTNFile_ASM); //Chao Walker	
 	WriteCall((void*)0x741420, LoadMTNFile_ASM); //Dark Chao Walker	
 	WriteCall((void*)0x74D02B, LoadMTNFile_ASM); //Miles
+
+
+	WriteData((NJS_MOTION***)0x750A94, &CharacterAnimations_r[0].Animation);
+	WriteData((NJS_MOTION***)0x750182, &CharacterAnimations_r[0].Animation);
 }
