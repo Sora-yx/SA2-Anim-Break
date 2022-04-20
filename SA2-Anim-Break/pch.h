@@ -13,6 +13,7 @@
 #include "Trampoline.h"
 #include "IniFile.hpp"
 #include "mod.h"
+#include "sa2-util.h"
 #include "util.h"
 
 #endif //PCH_H

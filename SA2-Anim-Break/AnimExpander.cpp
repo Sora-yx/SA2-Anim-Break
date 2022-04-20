@@ -3,7 +3,7 @@
 #include <algorithm>
 
 #define EDIT_ANIMLIST(a) for (int i = 0; i < a##AnimList_Length; ++i) \
-	a##AnimList[i].AnimNum += animcount * Characters_##a;
+	a##AnimList[i].AnimNum += animcount;
 
 using namespace std;
 
@@ -11,66 +11,69 @@ static constexpr int charactersCount = 16;
 static constexpr int animcount = 300;
 static constexpr int cmn_animcount = 86;
 
-static AnimationIndex CharacterAnimations_r[animcount * charactersCount]{};
+static AnimationIndex CharacterAnimations_r[600]{};
 
-static const string charArray[]{
-	"sonic",
-	"terios",
-	"miles",
-	"egg",
-	"knuck",
-	"rouge",
-	"TWALK",
-	"EWALK",
-	"amy",
-	"ssonic",
-	"sshadow",
-	"metalsonic",
-	"cwalk",
-	"dwalk",
-	"tical",
-	"chaos0",
-};
+Trampoline* LoadRELModule_t = nullptr;
 
-static int GetIDFromMtnName(char* name)
+int playerCount = 0;
+
+void MoveAnimIDJ2()
 {
-	string stringCopy = name;
+	for (int j = 0; j < animcount; j++) {
 
-	std::transform(stringCopy.begin(), stringCopy.end(), stringCopy.begin(), std::tolower);
-
-	for (int i = 0; i < LengthOfArray(charArray); i++)
-	{
-		if (stringCopy.find(charArray[i]) != string::npos)
+		if (MainCharObj2[1]->AnimInfo.Animations[j].AnimNum)
 		{
-			return i;
+			MainCharObj2[1]->AnimInfo.Animations[j].AnimNum += animcount;
 		}
 	}
+}
 
-	return -1;
+void ResetCharacterAnim()
+{
+	for (int i = cmn_animcount; i < 300; ++i)
+	{
+		CharacterAnimations[i].Index = 0;
+		CharacterAnimations[i].Animation = nullptr;
+		CharacterAnimations[i].Count = 0;
+	}
 }
 
 static AnimationIndex* LoadMTNFile_r(char* name)
 {
+	if (playerCount)
+	{
+		ResetCharacterAnim();
+	}
+
 	auto mem = LoadMTNFile(name);
 
-	auto charID = GetIDFromMtnName(name);
+	if (!playerCount) {
 
-	if (charID >= 0)
-	{
-		// Copy non common animations
 		for (int i = 0; i < animcount; ++i)
 		{
-			CharacterAnimations_r[i + animcount * charID].Index = i + animcount * charID;
-			CharacterAnimations_r[i + animcount * charID].Animation = CharacterAnimations[i].Animation;
-			CharacterAnimations_r[i + animcount * charID].Count = CharacterAnimations[i].Count;
+			CharacterAnimations_r[i].Index = i;
+			CharacterAnimations_r[i].Animation = CharacterAnimations[i].Animation;
+			CharacterAnimations_r[i].Count = CharacterAnimations[i].Count;
 		}
-
-
-		PrintDebug("[AnimExpander] Successfully applied %s", name);
 	}
 	else
 	{
-		PrintDebug("[AnimExpander] Failed to apply %s", name);
+		for (int i = 0; i < animcount; ++i)
+		{
+			CharacterAnimations_r[i + animcount].Index = i + animcount;
+			CharacterAnimations_r[i + animcount].Animation = CharacterAnimations[i].Animation;
+			CharacterAnimations_r[i + animcount].Count = CharacterAnimations[i].Count;
+		}
+	}
+
+	if (!playerCount)
+	{
+		playerCount++;
+	}	
+	else 
+	{
+		playerCount = 0;
+		MoveAnimIDJ2();
 	}
 
 	return mem;
@@ -83,6 +86,85 @@ static void __declspec(naked) LoadMTNFile_ASM()
 		push eax
 		call LoadMTNFile_r
 		add esp, 4
+		retn
+	}
+}
+
+
+void DrawSonic_R(NJS_MOTION* mot, NJS_OBJECT* obj, float frame)
+{
+	int curAnim = SonicCO2PtrExtern->base.AnimInfo.Current;
+	char pnum = SonicCO2PtrExtern->base.PlayerNum;
+
+	if (SonicCO2PtrExtern->base.AnimInfo.AnimationFrame == 2)
+	{
+		mot = SonicCO2PtrExtern->base.AnimInfo.Motion;
+	}
+	else
+	{
+		if ((MainCharObj1[pnum]->Status & Status_Ball) != 0
+			&& SonicCO2PtrExtern->base.CharID2 != Characters_MetalSonic
+			&& (SonicCO2PtrExtern->gap35E[2] & 0x11) != 0)
+		{
+			curAnim = 30;
+		}
+
+		mot = CharacterAnimations_r[SonicCO2PtrExtern->base.AnimInfo.Animations[curAnim].AnimNum].Animation;
+	}
+
+
+	return DrawMotionAndObject(mot, obj, frame);
+}
+
+static void __declspec(naked) DrawSonic_Hack()
+{
+	__asm
+	{
+		push[esp + 08h]
+		push[esp + 08h]
+		push ecx
+		call DrawSonic_R
+		pop ecx
+		add esp, 4
+		add esp, 4
+		retn
+	}
+}
+
+
+void DrawMiles_r(NJS_MOTION* motion, NJS_OBJECT* mdl, float frame) {
+
+	TailsCharObj2* mCO2 = MilesCO2Extern;
+
+	if (mCO2) {
+		char pnum = mCO2->base.PlayerNum;
+
+		int curAnim = mCO2->base.AnimInfo.Current;
+
+		if (mCO2->base.AnimInfo.AnimationFrame == 2)
+		{
+			motion = mCO2->base.AnimInfo.Motion;
+		}
+		else
+		{
+			motion = CharacterAnimations_r[mCO2->base.AnimInfo.Animations[curAnim].AnimNum].Animation;
+		}
+	}
+
+	return DrawMotionAndObject(motion, mdl, frame);
+}
+
+static void __declspec(naked) DrawMiles_Hack()
+{
+	__asm
+	{
+		push[esp + 08h] // frame
+		push[esp + 08h] // obj
+		push ecx // mtn
+		call DrawMiles_r
+		pop ecx // mtn
+		add esp, 4 // obj
+		add esp, 4 // frame
 		retn
 	}
 }
@@ -166,49 +248,6 @@ static void LoadMotion_Hack()
 	WriteCall((void*)0x74D02B, LoadMTNFile_ASM); // Miles
 }
 
-void njCnkMotion_R(NJS_MOTION* mot, NJS_OBJECT* obj, float frame)
-{
-	int curAnim = SonicCO2PtrExtern->base.AnimInfo.Current;
-	char pnum = SonicCO2PtrExtern->base.PlayerNum;
-
-	if (SonicCO2PtrExtern->base.AnimInfo.AnimationFrame == 2)
-	{
-		mot = SonicCO2PtrExtern->base.AnimInfo.Motion;
-	}
-	else
-	{
-		if ((MainCharObj1[pnum]->Status & Status_Ball) != 0
-			&& SonicCO2PtrExtern->base.CharID2 != Characters_MetalSonic
-			&& (SonicCO2PtrExtern->gap35E[2] & 0x11) != 0)
-		{
-			curAnim = 30;
-		}
-
-		mot = CharacterAnimations_r[SonicCO2PtrExtern->base.AnimInfo.Animations[curAnim].AnimNum].Animation;
-	}
-
-	*(int*)0x25EFE54 = 0x25EFE60;
-	njSetMotion(mot, frame);
-	MotionDrawCallback = (ObjectFuncPtr)0x42E660;
-	DrawObjMotion(obj);
-}
-
-static void __declspec(naked) DrawMotionAndObject_()
-{
-	__asm
-	{
-		push[esp + 08h] 
-		push[esp + 08h] 
-		push ecx 
-		call njCnkMotion_R
-		pop ecx
-		add esp, 4 
-		add esp, 4
-		retn
-	}
-}
-
-
 void PatchAnimations()
 {
 	LoadMotion_Hack();
@@ -216,23 +255,10 @@ void PatchAnimations()
 	PatchSonicAnim();
 	PatchMilesAnim();
 
-	EDIT_ANIMLIST(Shadow);
-	EDIT_ANIMLIST(Tails);
-	EDIT_ANIMLIST(Eggman);
-	EDIT_ANIMLIST(Knuckles);
-	EDIT_ANIMLIST(Rouge);
-	EDIT_ANIMLIST(MechTails);
-	EDIT_ANIMLIST(MechEggman);
-	EDIT_ANIMLIST(Amy);
-	EDIT_ANIMLIST(SuperSonic);
-	EDIT_ANIMLIST(SuperShadow);
-	EDIT_ANIMLIST(MetalSonic);
-	EDIT_ANIMLIST(ChaoWalker);
-	EDIT_ANIMLIST(DarkChaoWalker);
-	EDIT_ANIMLIST(Tikal);
-	EDIT_ANIMLIST(Chaos);
+	WriteCall((void*)0x720687, DrawSonic_Hack);
+	WriteCall((void*)0x750ABF, DrawMiles_Hack);
+	WriteCall((void*)0x750196, DrawMiles_Hack);
+	//LoadRELModule_t = new Trampoline((int)0x4549C0, (int)0x4549C8, LoadRELModule_r);
 
-	//WriteJump((void*)0x4692A0, PlayAnimationThingASM);
-
-	WriteCall((void*)0x720687, DrawMotionAndObject_);
+	WriteData<1>((int*)0x727DA0, 0xc3); //remove 2P icon fix miles crash in 2P
 }
