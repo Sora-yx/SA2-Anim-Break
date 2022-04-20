@@ -55,9 +55,9 @@ static AnimationIndex* LoadCharacterMTNFile(const char* name, int slot)
 {
 	ResetCharacterAnim();
 	auto mem = LoadMTNFile((char*)name);
-	auto base = animcount * animslot;
-	CopyAnimationID(animslot, base);
-	ChangeAnimationID(animslot, base);
+	auto base = animcount * slot;
+	CopyAnimationID(slot, base);
+	ChangeAnimationID(slot, base);
 	return mem;
 }
 
