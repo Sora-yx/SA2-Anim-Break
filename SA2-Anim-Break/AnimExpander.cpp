@@ -14,7 +14,7 @@ static int animslot = 0;
 
 static void ChangeAnimationID(int pnum, int base)
 {
-	if (pnum == 0 || pnum >= slotmax)
+	if (pnum == 0)
 	{
 		return;
 	}
@@ -35,14 +35,11 @@ static void ChangeAnimationID(int pnum, int base)
 
 static void CopyAnimationID(int pnum, int base)
 {
-	if (pnum < slotmax)
+	for (int i = 0; i < animcount; ++i)
 	{
-		for (int i = 0; i < animcount; ++i)
-		{
-			CharacterAnimations_r[i + base].Index = i + base;
-			CharacterAnimations_r[i + base].Animation = CharacterAnimations[i].Animation;
-			CharacterAnimations_r[i + base].Count = CharacterAnimations[i].Count;
-		}
+		CharacterAnimations_r[i + base].Index = i + base;
+		CharacterAnimations_r[i + base].Animation = CharacterAnimations[i].Animation;
+		CharacterAnimations_r[i + base].Count = CharacterAnimations[i].Count;
 	}
 }
 
@@ -54,15 +51,19 @@ static void ResetCharacterAnim()
 	}
 }
 
-static AnimationIndex* LoadMTNFile_r(char* name)
+static AnimationIndex* LoadCharacterMTNFile(const char* name, int slot)
 {
 	ResetCharacterAnim();
-	auto mem = LoadMTNFile(name);
+	auto mem = LoadMTNFile((char*)name);
 	auto base = animcount * animslot;
 	CopyAnimationID(animslot, base);
 	ChangeAnimationID(animslot, base);
-	if (animslot++ >= slotmax) animslot = 0;
 	return mem;
+}
+
+static AnimationIndex* LoadMTNFile_r(const char* name)
+{
+	return LoadCharacterMTNFile(name, animslot);
 }
 
 static void __declspec(naked) LoadMTNFile_ASM()
@@ -73,6 +74,19 @@ static void __declspec(naked) LoadMTNFile_ASM()
 		call LoadMTNFile_r
 		add esp, 4
 		retn
+	}
+}
+
+static const void* const loc_4599C5 = (void*)0x4599C5;
+static void __declspec(naked) PInitialize_asm()
+{
+	__asm
+	{
+		mov animslot, ecx // Get current player number
+		sub     esp, 0Ch
+		push    ebx
+		push    ebp
+		jmp loc_4599C5
 	}
 }
 
@@ -144,6 +158,7 @@ static void PatchPlayAnimation()
 
 static void LoadMotion_Hack()
 {
+	WriteJump((void*)0x4599C0, PInitialize_asm); // get player id
 	WriteCall((void*)0x49AA87, LoadMTNFile_ASM); // ss
 	WriteCall((void*)0x49ACE8, LoadMTNFile_ASM); // ssh
 	WriteCall((void*)0x716F98, LoadMTNFile_ASM); // sonic
