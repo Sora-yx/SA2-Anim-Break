@@ -2,80 +2,66 @@
 #include <string>
 #include <algorithm>
 
-#define EDIT_ANIMLIST(a) for (int i = 0; i < a##AnimList_Length; ++i) \
-	a##AnimList[i].AnimNum += animcount;
-
 using namespace std;
 
-static constexpr int charactersCount = 16;
+static constexpr int slotmax = 4;
 static constexpr int animcount = 300;
 static constexpr int cmn_animcount = 86;
 
-static AnimationIndex CharacterAnimations_r[600]{};
+static AnimationIndex CharacterAnimations_r[animcount * slotmax]{};
 
-Trampoline* LoadRELModule_t = nullptr;
+static int animslot = 0;
 
-int playerCount = 0;
-
-void MoveAnimIDJ2()
+static void ChangeAnimationID(int pnum, int base)
 {
-	for (int j = 0; j < animcount; j++) {
+	if (pnum == 0 || pnum >= slotmax)
+	{
+		return;
+	}
 
-		if (MainCharObj2[1]->AnimInfo.Animations[j].AnimNum)
+	auto pwp = MainCharObj2[pnum];
+
+	if (pwp)
+	{
+		for (int i = 0; i < animcount; i++)
 		{
-			MainCharObj2[1]->AnimInfo.Animations[j].AnimNum += animcount;
+			if (pwp->AnimInfo.Animations[i].AnimNum > cmn_animcount)
+			{
+				pwp->AnimInfo.Animations[i].AnimNum += base;
+			}
 		}
 	}
 }
 
-void ResetCharacterAnim()
+static void CopyAnimationID(int pnum, int base)
 {
-	for (int i = cmn_animcount; i < 300; ++i)
+	if (pnum < slotmax)
 	{
-		CharacterAnimations[i].Index = 0;
+		for (int i = 0; i < animcount; ++i)
+		{
+			CharacterAnimations_r[i + base].Index = i + base;
+			CharacterAnimations_r[i + base].Animation = CharacterAnimations[i].Animation;
+			CharacterAnimations_r[i + base].Count = CharacterAnimations[i].Count;
+		}
+	}
+}
+
+static void ResetCharacterAnim()
+{
+	for (int i = cmn_animcount; i < animcount; ++i)
+	{
 		CharacterAnimations[i].Animation = nullptr;
-		CharacterAnimations[i].Count = 0;
 	}
 }
 
 static AnimationIndex* LoadMTNFile_r(char* name)
 {
-	if (playerCount)
-	{
-		ResetCharacterAnim();
-	}
-
+	ResetCharacterAnim();
 	auto mem = LoadMTNFile(name);
-
-	if (!playerCount) {
-
-		for (int i = 0; i < animcount; ++i)
-		{
-			CharacterAnimations_r[i].Index = i;
-			CharacterAnimations_r[i].Animation = CharacterAnimations[i].Animation;
-			CharacterAnimations_r[i].Count = CharacterAnimations[i].Count;
-		}
-	}
-	else
-	{
-		for (int i = 0; i < animcount; ++i)
-		{
-			CharacterAnimations_r[i + animcount].Index = i + animcount;
-			CharacterAnimations_r[i + animcount].Animation = CharacterAnimations[i].Animation;
-			CharacterAnimations_r[i + animcount].Count = CharacterAnimations[i].Count;
-		}
-	}
-
-	if (!playerCount)
-	{
-		playerCount++;
-	}	
-	else 
-	{
-		playerCount = 0;
-		MoveAnimIDJ2();
-	}
-
+	auto base = animcount * animslot;
+	CopyAnimationID(animslot, base);
+	ChangeAnimationID(animslot, base);
+	if (animslot++ >= slotmax) animslot = 0;
 	return mem;
 }
 
@@ -90,92 +76,16 @@ static void __declspec(naked) LoadMTNFile_ASM()
 	}
 }
 
-
-void DrawSonic_R(NJS_MOTION* mot, NJS_OBJECT* obj, float frame)
-{
-	int curAnim = SonicCO2PtrExtern->base.AnimInfo.Current;
-	char pnum = SonicCO2PtrExtern->base.PlayerNum;
-
-	if (SonicCO2PtrExtern->base.AnimInfo.AnimationFrame == 2)
-	{
-		mot = SonicCO2PtrExtern->base.AnimInfo.Motion;
-	}
-	else
-	{
-		if ((MainCharObj1[pnum]->Status & Status_Ball) != 0
-			&& SonicCO2PtrExtern->base.CharID2 != Characters_MetalSonic
-			&& (SonicCO2PtrExtern->gap35E[2] & 0x11) != 0)
-		{
-			curAnim = 30;
-		}
-
-		mot = CharacterAnimations_r[SonicCO2PtrExtern->base.AnimInfo.Animations[curAnim].AnimNum].Animation;
-	}
-
-
-	return DrawMotionAndObject(mot, obj, frame);
-}
-
-static void __declspec(naked) DrawSonic_Hack()
-{
-	__asm
-	{
-		push[esp + 08h]
-		push[esp + 08h]
-		push ecx
-		call DrawSonic_R
-		pop ecx
-		add esp, 4
-		add esp, 4
-		retn
-	}
-}
-
-
-void DrawMiles_r(NJS_MOTION* motion, NJS_OBJECT* mdl, float frame) {
-
-	TailsCharObj2* mCO2 = MilesCO2Extern;
-
-	if (mCO2) {
-		char pnum = mCO2->base.PlayerNum;
-
-		int curAnim = mCO2->base.AnimInfo.Current;
-
-		if (mCO2->base.AnimInfo.AnimationFrame == 2)
-		{
-			motion = mCO2->base.AnimInfo.Motion;
-		}
-		else
-		{
-			motion = CharacterAnimations_r[mCO2->base.AnimInfo.Animations[curAnim].AnimNum].Animation;
-		}
-	}
-
-	return DrawMotionAndObject(motion, mdl, frame);
-}
-
-static void __declspec(naked) DrawMiles_Hack()
-{
-	__asm
-	{
-		push[esp + 08h] // frame
-		push[esp + 08h] // obj
-		push ecx // mtn
-		call DrawMiles_r
-		pop ecx // mtn
-		add esp, 4 // obj
-		add esp, 4 // frame
-		retn
-	}
-}
-
 static void PatchSonicAnim()
 {
 	// Display
 	WriteData((NJS_MOTION***)0x72074C, &CharacterAnimations_r[0].Animation);
 	WriteData((NJS_MOTION***)0x71e9f8, &CharacterAnimations_r[0].Animation);
 
-	WriteData((NJS_MOTION***)0x720670, &CharacterAnimations_r[0].Animation); //Doesn't work 
+	// Fucked up display
+	WriteData<7>((void*)0x720666, 0x90ui8);
+	WriteData((uint8_t*)0x720664, 0x04ui8);
+	WriteData((NJS_MOTION***)0x720670, &CharacterAnimations_r[0].Animation);
 
 	// Action
 	WriteData((NJS_MOTION***)0x71b00f, &CharacterAnimations_r[0].Animation);
@@ -188,7 +98,12 @@ static void PatchSonicAnim()
 
 static void PatchMilesAnim()
 {
+	WriteData<7>((void*)0x750A83, 0x90ui8);
+	WriteData((uint8_t*)0x750A7A, 0x01ui8);
 	WriteData((NJS_MOTION***)0x750A94, &CharacterAnimations_r[0].Animation);
+
+	WriteData<7>((void*)0x750173, 0x90ui8);
+	WriteData((uint8_t*)0x750171, 0x14ui8);
 	WriteData((NJS_MOTION***)0x750182, &CharacterAnimations_r[0].Animation);
 }
 
@@ -227,7 +142,6 @@ static void PatchPlayAnimation()
 	WriteData((NJS_MOTION***)0x45e4fA, &CharacterAnimations_r[0].Animation);
 }
 
-
 static void LoadMotion_Hack()
 {
 	WriteCall((void*)0x49AA87, LoadMTNFile_ASM); // ss
@@ -254,11 +168,6 @@ void PatchAnimations()
 	PatchPlayAnimation();
 	PatchSonicAnim();
 	PatchMilesAnim();
-
-	WriteCall((void*)0x720687, DrawSonic_Hack);
-	WriteCall((void*)0x750ABF, DrawMiles_Hack);
-	WriteCall((void*)0x750196, DrawMiles_Hack);
-	//LoadRELModule_t = new Trampoline((int)0x4549C0, (int)0x4549C8, LoadRELModule_r);
 
 	WriteData<1>((int*)0x727DA0, 0xc3); //remove 2P icon fix miles crash in 2P
 }
