@@ -3,7 +3,6 @@
 HelperFunctions HelperFunctionsGlobal;
 const char* error = "[SA2 Anim Break]: WARNING: Your version of the Mod Loader is old, the mod won't work properly.\nPlease update your Mod Loader for the best experience.";
 
-
 extern "C" {
 
 	__declspec(dllexport) void __cdecl Init(const char* path, const HelperFunctions& helperFunctions)

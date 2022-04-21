@@ -12,6 +12,28 @@ static AnimationIndex CharacterAnimations_r[animcount * slotmax]{};
 
 static int animslot = 0;
 
+Trampoline* LoadRELModule_t = nullptr;
+
+extern "C"
+{
+	__declspec(dllexport) AnimationIndex* GetCharacterAnim_r()
+	{
+		return CharacterAnimations_r;
+	}
+
+	__declspec(dllexport) void SetCharacterAnim(uint16_t Index, uint16_t Count, NJS_MOTION* Animation)
+	{
+		CharacterAnimations_r[Index].Animation = Animation;
+		CharacterAnimations_r[Index].Count = Count;
+		CharacterAnimations_r[Index].Index = Index;
+	}
+
+	__declspec(dllexport) int getCharAnimSize() {
+		return LengthOfArray(CharacterAnimations_r);
+	}
+}
+
+
 static void ChangeAnimationID(int pnum, int base)
 {
 	if (pnum == 0)
@@ -107,7 +129,8 @@ static void PatchSonicAnim()
 	// Grinding
 	WriteData((NJS_MOTION***)0x7267b2, &CharacterAnimations_r[0].Animation);
 	WriteData((NJS_MOTION***)0x726ac6, &CharacterAnimations_r[0].Animation);
-	WriteData((NJS_MOTION***)0x726b5B, &CharacterAnimations_r[0].Animation);
+	WriteData((NJS_MOTION***)0x726b5B, &CharacterAnimations_r[0].Animation);	
+	WriteData((NJS_MOTION***)0x726c5E, &CharacterAnimations_r[0].Animation);
 }
 
 static void PatchMilesAnim()
@@ -177,6 +200,30 @@ static void LoadMotion_Hack()
 	WriteCall((void*)0x74D02B, LoadMTNFile_ASM); // Miles
 }
 
+void __cdecl LoadRELModule_r(const char* a1)
+{
+	auto original = reinterpret_cast<decltype(LoadRELModule_r)*>(LoadRELModule_t->Target());
+	original(a1);
+
+	for (int i = 0; i < animcount; i++)
+	{
+		if (CharacterAnimations[i].Animation != nullptr && CharacterAnimations_r[i].Animation == nullptr)
+		{
+			CharacterAnimations_r[i].Animation = CharacterAnimations[i].Animation;
+			CharacterAnimations_r[i].Index = i;
+			CharacterAnimations_r[i].Count = CharacterAnimations[i].Count;
+		}
+	}
+
+	for (int i = 0; i < animcount; i++)
+	{
+		CharacterAnimations[i].Animation = nullptr;
+		CharacterAnimations[i].Index = i;
+		CharacterAnimations[i].Count = 0;
+
+	}
+}
+
 void PatchAnimations()
 {
 	LoadMotion_Hack();
@@ -185,4 +232,6 @@ void PatchAnimations()
 	PatchMilesAnim();
 
 	WriteData<1>((int*)0x727DA0, 0xc3); //remove 2P icon fix miles crash in 2P
+
+	LoadRELModule_t = new Trampoline((int)LoadRELModule, (int)LoadRELModule + 0x8, LoadRELModule_r);
 }
