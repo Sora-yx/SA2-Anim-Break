@@ -47,10 +47,7 @@ static void ChangeAnimationID(int pnum, int base)
 	{
 		for (int i = 0; i < animcount; i++)
 		{
-			if (pwp->AnimInfo.Animations[i].AnimNum > cmn_animcount)
-			{
-				pwp->AnimInfo.Animations[i].AnimNum += base;
-			}
+			pwp->AnimInfo.Animations[i].AnimNum += base;
 		}
 	}
 }
@@ -67,7 +64,7 @@ static void CopyAnimationID(int pnum, int base)
 
 static void ResetCharacterAnim()
 {
-	for (int i = cmn_animcount; i < animcount; ++i)
+	for (int i = 0; i < animcount; ++i)
 	{
 		CharacterAnimations[i].Animation = nullptr;
 	}
@@ -75,9 +72,18 @@ static void ResetCharacterAnim()
 
 static AnimationIndex* LoadCharacterMTNFile(const char* name, int slot)
 {
+
 	ResetCharacterAnim();
 	auto mem = LoadMTNFile((char*)name);
 	auto base = animcount * slot;
+
+	//only load common anim if the motion of the character didn't have them included
+	if (CharacterAnimations[0].Animation == nullptr)
+	{
+		PrintDebug("Load common Anim\n");
+		LoadMTNFile((char*)"PLCOMMTN.PRS");
+	}
+
 	CopyAnimationID(slot, base);
 	ChangeAnimationID(slot, base);
 	return mem;
@@ -129,7 +135,7 @@ static void PatchSonicAnim()
 	// Grinding
 	WriteData((NJS_MOTION***)0x7267b2, &CharacterAnimations_r[0].Animation);
 	WriteData((NJS_MOTION***)0x726ac6, &CharacterAnimations_r[0].Animation);
-	WriteData((NJS_MOTION***)0x726b5B, &CharacterAnimations_r[0].Animation);	
+	WriteData((NJS_MOTION***)0x726b5B, &CharacterAnimations_r[0].Animation);
 	WriteData((NJS_MOTION***)0x726c5E, &CharacterAnimations_r[0].Animation);
 }
 
@@ -215,12 +221,14 @@ void __cdecl LoadRELModule_r(const char* a1)
 		}
 	}
 
-	for (int i = 0; i < animcount; i++)
+	for (int i = 300; i < 600; i++)
 	{
-		CharacterAnimations[i].Animation = nullptr;
-		CharacterAnimations[i].Index = i;
-		CharacterAnimations[i].Count = 0;
-
+		if (CharacterAnimations[i - 300].Animation != nullptr && CharacterAnimations_r[i].Animation == nullptr)
+		{
+			CharacterAnimations_r[i].Animation = CharacterAnimations[i - 300].Animation;
+			CharacterAnimations_r[i].Index = i;
+			CharacterAnimations_r[i].Count = CharacterAnimations[i - 300].Count;
+		}
 	}
 }
 
