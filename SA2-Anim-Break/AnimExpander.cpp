@@ -139,6 +139,12 @@ static void PatchSonicAnim()
 	WriteData((NJS_MOTION***)0x726c5E, &CharacterAnimations_r[0].Animation);
 }
 
+static void PatchKnuxAnim()
+{
+	//spiral after image
+	WriteData((NJS_MOTION***)0x72dcb1, &CharacterAnimations_r[0].Animation);
+}
+
 static void PatchMilesAnim()
 {
 	WriteData<7>((void*)0x750A83, 0x90ui8);
@@ -183,7 +189,50 @@ static void PatchPlayAnimation()
 	// ?????
 	WriteData((NJS_MOTION***)0x45a4dB, &CharacterAnimations_r[0].Animation);
 	WriteData((NJS_MOTION***)0x45e4fA, &CharacterAnimations_r[0].Animation);
+
+	//Super
+	WriteData((NJS_MOTION***)0x49ccaa, &CharacterAnimations_r[0].Animation);
 }
+
+static void PatchObjects()
+{
+
+	//iron bar RH
+	WriteData((NJS_MOTION***)0x4e2b3d, &CharacterAnimations_r[0].Animation);
+	WriteData((NJS_MOTION***)0x4e23b2, &CharacterAnimations_r[0].Animation);
+
+	//iron bar CE
+	WriteData((NJS_MOTION***)0x5e9700, &CharacterAnimations_r[0].Animation);
+	WriteData((NJS_MOTION***)0x5e9cca, &CharacterAnimations_r[0].Animation);
+
+	//iron bar PC
+	WriteData((NJS_MOTION***)0x706cc9, &CharacterAnimations_r[0].Animation);
+	WriteData((NJS_MOTION***)0x707246, &CharacterAnimations_r[0].Animation);
+
+	//board CE
+	WriteData((NJS_MOTION***)0x5ebedd, &CharacterAnimations_r[0].Animation);
+	WriteData((NJS_MOTION***)0x5ebe48, &CharacterAnimations_r[24].Animation);
+	//board CE display 2
+	WriteData((NJS_MOTION***)0x5ec197, &CharacterAnimations_r[0].Animation);
+	WriteData((NJS_MOTION***)0x5ec108, &CharacterAnimations_r[24].Animation);
+
+	//Obj Jump (GF)
+	WriteData((NJS_MOTION***)0x5f6eaf, &CharacterAnimations_r[0].Animation);
+
+	//board MH
+	WriteData((NJS_MOTION***)0x6f7dd5, &CharacterAnimations_r[0].Animation);
+	WriteData((NJS_MOTION***)0x6f7d3b, &CharacterAnimations_r[24].Animation);
+}
+
+
+void PatchMHAnimTest()
+{
+	WriteData((NJS_MOTION***)0x6f36ea, &CharacterAnimations_r[0].Animation);
+	WriteData((NJS_MOTION***)0x6f3709, &CharacterAnimations_r[0].Animation);
+	WriteData((uint16_t**)0x6f36ff, &CharacterAnimations_r[0].Count);
+
+}
+
 
 static void LoadMotion_Hack()
 {
@@ -206,40 +255,47 @@ static void LoadMotion_Hack()
 	WriteCall((void*)0x74D02B, LoadMTNFile_ASM); // Miles
 }
 
-void __cdecl LoadRELModule_r(const char* a1)
+
+
+void __cdecl CopyFinalAnim_r()
 {
-	auto original = reinterpret_cast<decltype(LoadRELModule_r)*>(LoadRELModule_t->Target());
-	original(a1);
+	int start = 0;
+	int goal = 300;
 
-	for (int i = 0; i < animcount; i++)
-	{
-		if (CharacterAnimations[i].Animation != nullptr && CharacterAnimations_r[i].Animation == nullptr)
-		{
-			CharacterAnimations_r[i].Animation = CharacterAnimations[i].Animation;
-			CharacterAnimations_r[i].Index = i;
-			CharacterAnimations_r[i].Count = CharacterAnimations[i].Count;
+	for (int j = 0; j < 4; j++) {
+
+		if (MainCharObj1[j]) {
+
+			if (j > 0)
+			{
+				start = 300 * j;
+				goal = start + 300;
+			}
+
+			for (int i = start; i < goal; i++)
+			{
+				if (CharacterAnimations_r[i].Animation == nullptr)
+				{
+					CharacterAnimations_r[i].Animation = CharacterAnimations[i - start].Animation;
+					CharacterAnimations_r[i].Index = i;
+					CharacterAnimations_r[i].Count = CharacterAnimations[i - start].Count;
+				}
+			}
 		}
 	}
 
-	for (int i = 300; i < 600; i++)
-	{
-		if (CharacterAnimations[i - 300].Animation != nullptr && CharacterAnimations_r[i].Animation == nullptr)
-		{
-			CharacterAnimations_r[i].Animation = CharacterAnimations[i - 300].Animation;
-			CharacterAnimations_r[i].Index = i;
-			CharacterAnimations_r[i].Count = CharacterAnimations[i - 300].Count;
-		}
-	}
+	ResetMusic();
 }
 
 void PatchAnimations()
 {
 	LoadMotion_Hack();
 	PatchPlayAnimation();
+	PatchObjects();
 	PatchSonicAnim();
 	PatchMilesAnim();
 
 	WriteData<1>((int*)0x727DA0, 0xc3); //remove 2P icon fix miles crash in 2P
 
-	LoadRELModule_t = new Trampoline((int)LoadRELModule, (int)LoadRELModule + 0x8, LoadRELModule_r);
+	WriteCall((void*)0x43CBCB, CopyFinalAnim_r);
 }
